@@ -7,6 +7,7 @@
 // R2_BUCKET
 // R2_ACCOUNT_ID
 // R2_REGION (e.g., "auto")
+// R2_ENDPOINT
 
 export default {
   async fetch(request, env, ctx) {
@@ -25,12 +26,14 @@ export default {
       const fileExt = contentType === "video/mp4" ? "mp4" : "mov";
       const objectKey = `${sanitize(title)}.${fileExt}`;
 
-      const method = "PUT";
-      const bucket = env.R2_BUCKET;
-      const region = env.R2_REGION;
-      const service = "s3";
-      const host = `${bucket}.r2.${region}.cloudflarestorage.com`;
-      const url = `https://${host}/${objectKey}`;
+       const method = "PUT";
+       const bucket = env.R2_BUCKET;
+       const region = env.R2_REGION; 
+       const service = "s3";
+       const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
+       const host = endpoint;
+       const url = `https://${host}/${objectKey}`;
+
 
       const now = new Date();
       const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
