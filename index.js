@@ -30,13 +30,13 @@ export default {
       const fileExt = contentType === "video/mp4" ? "mp4" : "mov";
       const objectKey = `${sanitize(title)}.${fileExt}`;
 
-       const method = "PUT";
-       const bucket = env.R2_BUCKET;
-       const region = env.R2_REGION; 
-       const service = "s3";
-       const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const host = `${env.R2_ACCOUNT_ID}.r2.${region}.cloudflarestorage.com`;
-const url = `https://${host}/${bucket}/${objectKey}`;
+      const method = "PUT";
+      const bucket = env.R2_BUCKET;
+      const region = env.R2_REGION; 
+      const service = "s3";
+      const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      const host = `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+      const url = `https://${host}/${bucket}/${objectKey}`;
 
 
       const now = new Date();
