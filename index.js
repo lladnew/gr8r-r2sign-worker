@@ -1,6 +1,7 @@
 // gr8r-r2sign-worker v1.0.2
 // FIXED getSignatureKey logic to comply with Web Crypto API's sign() requirements.
 // Replaced invalid CryptoKey reuse pattern that caused TypeError: parameter 3 is not of type 'Array'
+// FIXED: Presigned PUT now uses path-style URL to avoid "PUT bucket route" errors
 // gr8r-r2sign-worker v1.0.1 (HMAC presigned URL fallback)
 // Minimal working version to test direct PUT to R2 without createPresignedUrl()
 
@@ -34,8 +35,8 @@ export default {
        const region = env.R2_REGION; 
        const service = "s3";
        const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
-       const host = endpoint;
-       const url = `https://${host}/${objectKey}`;
+      const host = `${env.R2_ACCOUNT_ID}.r2.${region}.cloudflarestorage.com`;
+const url = `https://${host}/${bucket}/${objectKey}`;
 
 
       const now = new Date();
@@ -57,7 +58,7 @@ export default {
 
       const canonicalRequest = [
         method,
-        `/${objectKey}`,
+       `/${bucket}/${objectKey}`,
         "",
         canonicalHeaders,
         signedHeaders,
