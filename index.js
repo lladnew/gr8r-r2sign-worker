@@ -1,3 +1,6 @@
+// gr8r-r2sign-worker v1.0.2
+// FIXED getSignatureKey logic to comply with Web Crypto API's sign() requirements.
+// Replaced invalid CryptoKey reuse pattern that caused TypeError: parameter 3 is not of type 'Array'
 // gr8r-r2sign-worker v1.0.1 (HMAC presigned URL fallback)
 // Minimal working version to test direct PUT to R2 without createPresignedUrl()
 
@@ -72,13 +75,32 @@ export default {
       ].join('\n');
 
       const getSignatureKey = async (key, dateStamp, regionName, serviceName) => {
-        const encoder = new TextEncoder();
-        const kDate = await crypto.subtle.importKey("raw", encoder.encode("AWS4" + key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-        const kRegion = await crypto.subtle.sign("HMAC", await crypto.subtle.importKey("raw", encoder.encode(dateStamp), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]), kDate);
-        const kService = await crypto.subtle.sign("HMAC", await crypto.subtle.importKey("raw", encoder.encode(regionName), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]), kRegion);
-        const kSigning = await crypto.subtle.sign("HMAC", await crypto.subtle.importKey("raw", encoder.encode(serviceName), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]), kService);
-        return crypto.subtle.importKey("raw", kSigning, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-      };
+  const encoder = new TextEncoder();
+  const signHmac = async (keyData, msg) => {
+    const cryptoKey = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    return await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(msg));
+  };
+
+  const kDate = await signHmac(encoder.encode("AWS4" + key), dateStamp);
+  const kRegion = await signHmac(kDate, regionName);
+  const kService = await signHmac(kRegion, serviceName);
+  const kSigning = await signHmac(kService, "aws4_request");
+
+  return crypto.subtle.importKey(
+    "raw",
+    kSigning,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+};
+
 
       const signingKey = await getSignatureKey(env.R2_SECRET_ACCESS_KEY, datestamp, region, service);
       const signatureBytes = await crypto.subtle.sign("HMAC", signingKey, new TextEncoder().encode(stringToSign));
