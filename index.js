@@ -35,8 +35,9 @@ export default {
       const region = env.R2_REGION; 
       const service = "s3";
       const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
-      const host = `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-      const url = `https://${bucket}.${host}/${objectKey}`;
+    const host = `${bucket}.${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+const url = `https://${host}/${objectKey}`;
+
 
 
 
