@@ -36,7 +36,8 @@ export default {
       const service = "s3";
       const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
       const host = `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-      const url = `https://${host}/${bucket}/${objectKey}`;
+      const url = `https://${bucket}.${host}/${objectKey}`;
+
 
 
       const now = new Date();
