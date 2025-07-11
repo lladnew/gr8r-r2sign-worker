@@ -46,11 +46,11 @@ export default {
       const credentialScope = `${datestamp}/${region}/${service}/aws4_request`;
       const credential = `${env.R2_ACCESS_KEY_ID}/${credentialScope}`;
 
-      const headers = {
-        host,
-        "x-amz-content-sha256": "UNSIGNED-PAYLOAD",
-        "x-amz-date": amzDate,
-      };
+  const headers = {
+  "host": host,
+  "x-amz-date": amzDate,
+  "x-amz-content-sha256": "UNSIGNED-PAYLOAD",
+};
 
       const canonicalHeaders = Object.entries(headers)
         .map(([k, v]) => `${k.toLowerCase()}:${v}\n`).join('');
