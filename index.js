@@ -55,7 +55,6 @@ export default {
       const canonicalHeaders = Object.entries(headers)
         .map(([k, v]) => `${k.toLowerCase()}:${v}\n`).join('');
       const signedHeaders = Object.keys(headers).map(k => k.toLowerCase()).sort().join(';');
-
       const canonicalRequest = [
         method,
        `/${bucket}/${objectKey}`,
