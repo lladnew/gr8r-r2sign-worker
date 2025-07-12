@@ -1,3 +1,5 @@
+// gr8r-r2sign-worker v1.0.5
+// Grok says... more logging
 // gr8r-r2sign-worker v1.0.4
 // Grok says he simplified after I requested... can't hardly break broken..
 // gr8r-r2sign-worker v1.0.3
@@ -16,6 +18,7 @@
 // R2_ACCOUNT_ID
 // R2_REGION (e.g., "auto")
 // R2_ENDPOINT
+
 export default {
   async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
@@ -74,7 +77,8 @@ export default {
         `X-Amz-Date=${amzDate}`,
         `X-Amz-Expires=3600`,
         `X-Amz-SignedHeaders=${signedHeaders}`
-      ].join('&');
+      ].sort() // Sort query params alphabetically
+        .join('&');
 
       const canonicalRequest = [
         method,
@@ -83,12 +87,14 @@ export default {
         canonicalHeaders,
         signedHeaders,
         "UNSIGNED-PAYLOAD"
-      ].join('\n');
+      ].join('\n').trim();
 
-      const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalRequest));
-      const hashedCanonicalRequest = Array.from(new Uint8Array(hash))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+      const encodedCanonicalRequest = new TextEncoder().encode(canonicalRequest);
+      console.log('CanonicalRequest:', canonicalRequest);
+      console.log('CanonicalRequestBytes:', Array.from(new Uint8Array(encodedCanonicalRequest)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+      const hash = await crypto.subtle.digest("SHA-256", encodedCanonicalRequest);
+      const hashedCanonicalRequest = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log('HashedCanonicalRequest:', hashedCanonicalRequest);
 
       const stringToSign = [
         "AWS4-HMAC-SHA256",
@@ -97,8 +103,6 @@ export default {
         hashedCanonicalRequest
       ].join('\n');
 
-      console.log('CanonicalRequest:', canonicalRequest);
-      console.log('HashedCanonicalRequest:', hashedCanonicalRequest);
       console.log('StringToSign:', stringToSign);
 
       const getSignatureKey = async (key, dateStamp, regionName, serviceName) => {
@@ -132,9 +136,7 @@ export default {
         ),
         new TextEncoder().encode(stringToSign)
       );
-      const signature = Array.from(new Uint8Array(signatureBytes))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+      const signature = Array.from(new Uint8Array(signatureBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
 
       const signedUrl = `${url}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
 
@@ -142,7 +144,7 @@ export default {
         uploadUrl: signedUrl,
         objectKey,
         headers: {
-          "Content-Type": contentType, // Still guide client to use correct Content-Type
+          "Content-Type": contentType,
           "x-amz-date": amzDate,
           "x-amz-content-sha256": "UNSIGNED-PAYLOAD"
         }
