@@ -62,7 +62,7 @@ const canonicalQueryString = [
   `X-Amz-Date=${amzDate}`,
   `X-Amz-Expires=3600`,
   `X-Amz-SignedHeaders=${signedHeaders}`
-].sort().join('&');
+].join('&');
 
 const canonicalRequest = [
   method,
