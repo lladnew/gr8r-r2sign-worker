@@ -1,3 +1,5 @@
+// gr8r-r2sign-worker v1.0.3
+// all I know is I gave Grok a shot.  He vomitted all sorts of info that I didn't read
 // gr8r-r2sign-worker v1.0.2
 // FIXED getSignatureKey logic to comply with Web Crypto API's sign() requirements.
 // Replaced invalid CryptoKey reuse pattern that caused TypeError: parameter 3 is not of type 'Array'
@@ -12,7 +14,6 @@
 // R2_ACCOUNT_ID
 // R2_REGION (e.g., "auto")
 // R2_ENDPOINT
-
 export default {
   async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
@@ -22,22 +23,27 @@ export default {
 
     try {
       const { title, contentType } = await request.json();
-      if (!title || !contentType) {
-        return new Response("Missing title or contentType", { status: 400 });
+      const contentTypeToExt = {
+        "video/mp4": "mp4",
+        "video/quicktime": "mov",
+        "image/jpeg": "jpg",
+        "image/png": "png"
+      };
+      if (!title || typeof title !== "string" || title.length > 100 || !contentType || !contentTypeToExt[contentType]) {
+        return new Response("Invalid title or contentType", { status: 400 });
       }
 
       const sanitize = (t) => t.trim().replace(/[\/\\?%*:|"<>']/g, '').replace(/\s+/g, '-').toLowerCase();
-      const fileExt = contentType === "video/mp4" ? "mp4" : "mov";
+      const fileExt = contentTypeToExt[contentType];
       const objectKey = `${sanitize(title)}.${fileExt}`;
+      const encodedObjectKey = encodeURIComponent(objectKey);
 
       const method = "PUT";
       const bucket = env.R2_BUCKET;
-      const region = env.R2_REGION; 
+      const region = env.R2_REGION || "auto";
       const service = "s3";
-      const endpoint = env.R2_ENDPOINT.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    const host = `${bucket}.${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-const url = `https://${host}/${objectKey}`;
-
+      const host = `${bucket}.${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
+      const url = `https://${host}/${encodedObjectKey}`;
 
       const now = new Date();
       const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
@@ -46,81 +52,94 @@ const url = `https://${host}/${objectKey}`;
       const credentialScope = `${datestamp}/${region}/${service}/aws4_request`;
       const credential = `${env.R2_ACCESS_KEY_ID}/${credentialScope}`;
 
-  const headers = {
-  "host": host,
-  "x-amz-date": amzDate,
-  "x-amz-content-sha256": "UNSIGNED-PAYLOAD",
-};
+      const headers = {
+        "host": host,
+        "x-amz-date": amzDate,
+        "x-amz-content-sha256": "UNSIGNED-PAYLOAD",
+        "content-type": contentType // Include Content-Type in signature
+      };
 
       const canonicalHeaders = Object.entries(headers)
         .map(([k, v]) => `${k.toLowerCase()}:${v}\n`).join('');
       const signedHeaders = Object.keys(headers).map(k => k.toLowerCase()).sort().join(';');
-      
-const canonicalQueryString = [
-  `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
-  `X-Amz-Credential=${encodeURIComponent(credential)}`,
-  `X-Amz-Date=${amzDate}`,
-  `X-Amz-Expires=3600`,
-  `X-Amz-SignedHeaders=${signedHeaders}`
-].join('&');
 
-const canonicalRequest = [
-  method,
-  `/${objectKey}`,
-  canonicalQueryString,
-  canonicalHeaders,
-  signedHeaders,
-  "UNSIGNED-PAYLOAD"
-].join('\n');
-      
-const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalRequest));
-const hashedCanonicalRequest = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-      
-  const stringToSign = [
-  "AWS4-HMAC-SHA256",
-  amzDate,
-  credentialScope,
-  hashedCanonicalRequest
-].join('\n');
+      const canonicalQueryString = [
+        `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
+        `X-Amz-Credential=${encodeURIComponent(credential)}`,
+        `X-Amz-Date=${amzDate}`,
+        `X-Amz-Expires=3600`,
+        `X-Amz-SignedHeaders=${signedHeaders}`
+      ].join('&');
 
+      const canonicalRequest = [
+        method,
+        `/${encodedObjectKey}`,
+        canonicalQueryString,
+        canonicalHeaders,
+        signedHeaders,
+        "UNSIGNED-PAYLOAD"
+      ].join('\n');
+
+      const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalRequest));
+      const hashedCanonicalRequest = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+      const stringToSign = [
+        "AWS4-HMAC-SHA256",
+        amzDate,
+        credentialScope,
+        hashedCanonicalRequest
+      ].join('\n');
 
       const getSignatureKey = async (key, dateStamp, regionName, serviceName) => {
-  const encoder = new TextEncoder();
-  const signHmac = async (keyData, msg) => {
-    const cryptoKey = await crypto.subtle.importKey(
-      "raw",
-      keyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    );
-    return await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(msg));
-  };
+        const encoder = new TextEncoder();
+        const signHmac = async (keyData, msg) => {
+          const cryptoKey = await crypto.subtle.importKey(
+            "raw",
+            keyData,
+            { name: "HMAC", hash: "SHA-256" },
+            false,
+            ["sign"]
+          );
+          return await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(msg));
+        };
 
-  const kDate = await signHmac(encoder.encode("AWS4" + key), dateStamp);
-  const kRegion = await signHmac(kDate, regionName);
-  const kService = await signHmac(kRegion, serviceName);
-  const kSigning = await signHmac(kService, "aws4_request");
+        const kDate = await signHmac(encoder.encode("AWS4" + key), dateStamp);
+        const kRegion = await signHmac(kDate, regionName);
+        const kService = await signHmac(kRegion, serviceName);
+        const kSigning = await signHmac(kService, "aws4_request");
 
-  return crypto.subtle.importKey(
-    "raw",
-    kSigning,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-};
+        return crypto.subtle.importKey(
+          "raw",
+          kSigning,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+      };
 
       const signingKey = await getSignatureKey(env.R2_SECRET_ACCESS_KEY, datestamp, region, service);
       const signatureBytes = await crypto.subtle.sign("HMAC", signingKey, new TextEncoder().encode(stringToSign));
       const signature = Array.from(new Uint8Array(signatureBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
 
       const signedUrl = `${url}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
-   
-      return Response.json({ uploadUrl: signedUrl, objectKey });
 
+      return Response.json({
+        uploadUrl: signedUrl,
+        objectKey,
+        headers: {
+          "Content-Type": contentType,
+          "x-amz-date": amzDate,
+          "x-amz-content-sha256": "UNSIGNED-PAYLOAD"
+        }
+      });
     } catch (err) {
-      return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
+      return new Response(JSON.stringify({
+        error: err.message,
+        stack: err.stack,
+        canonicalRequest,
+        stringToSign,
+        hashedCanonicalRequest
+      }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
