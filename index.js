@@ -1,3 +1,5 @@
+// gr8r-r2sign-worker v1.0.4
+// Grok says he simplified after I requested... can't hardly break broken..
 // gr8r-r2sign-worker v1.0.3
 // all I know is I gave Grok a shot.  He vomitted all sorts of info that I didn't read
 // gr8r-r2sign-worker v1.0.2
@@ -53,15 +55,18 @@ export default {
       const credential = `${env.R2_ACCESS_KEY_ID}/${credentialScope}`;
 
       const headers = {
-        "host": host,
-        "x-amz-date": amzDate,
+        host,
         "x-amz-content-sha256": "UNSIGNED-PAYLOAD",
-        "content-type": contentType // Include Content-Type in signature
+        "x-amz-date": amzDate
       };
 
       const canonicalHeaders = Object.entries(headers)
-        .map(([k, v]) => `${k.toLowerCase()}:${v}\n`).join('');
-      const signedHeaders = Object.keys(headers).map(k => k.toLowerCase()).sort().join(';');
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}:${v}\n`)
+        .join('');
+      const signedHeaders = Object.keys(headers)
+        .sort((a, b) => a.localeCompare(b))
+        .join(';');
 
       const canonicalQueryString = [
         `X-Amz-Algorithm=AWS4-HMAC-SHA256`,
@@ -81,7 +86,9 @@ export default {
       ].join('\n');
 
       const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonicalRequest));
-      const hashedCanonicalRequest = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashedCanonicalRequest = Array.from(new Uint8Array(hash))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 
       const stringToSign = [
         "AWS4-HMAC-SHA256",
@@ -89,6 +96,10 @@ export default {
         credentialScope,
         hashedCanonicalRequest
       ].join('\n');
+
+      console.log('CanonicalRequest:', canonicalRequest);
+      console.log('HashedCanonicalRequest:', hashedCanonicalRequest);
+      console.log('StringToSign:', stringToSign);
 
       const getSignatureKey = async (key, dateStamp, regionName, serviceName) => {
         const encoder = new TextEncoder();
@@ -106,20 +117,24 @@ export default {
         const kDate = await signHmac(encoder.encode("AWS4" + key), dateStamp);
         const kRegion = await signHmac(kDate, regionName);
         const kService = await signHmac(kRegion, serviceName);
-        const kSigning = await signHmac(kService, "aws4_request");
-
-        return crypto.subtle.importKey(
-          "raw",
-          kSigning,
-          { name: "HMAC", hash: "SHA-256" },
-          false,
-          ["sign"]
-        );
+        return await signHmac(kService, "aws4_request");
       };
 
       const signingKey = await getSignatureKey(env.R2_SECRET_ACCESS_KEY, datestamp, region, service);
-      const signatureBytes = await crypto.subtle.sign("HMAC", signingKey, new TextEncoder().encode(stringToSign));
-      const signature = Array.from(new Uint8Array(signatureBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const signatureBytes = await crypto.subtle.sign(
+        "HMAC",
+        await crypto.subtle.importKey(
+          "raw",
+          signingKey,
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        ),
+        new TextEncoder().encode(stringToSign)
+      );
+      const signature = Array.from(new Uint8Array(signatureBytes))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 
       const signedUrl = `${url}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
 
@@ -127,22 +142,25 @@ export default {
         uploadUrl: signedUrl,
         objectKey,
         headers: {
-          "Content-Type": contentType,
+          "Content-Type": contentType, // Still guide client to use correct Content-Type
           "x-amz-date": amzDate,
           "x-amz-content-sha256": "UNSIGNED-PAYLOAD"
         }
       });
     } catch (err) {
-      return new Response(JSON.stringify({
-        error: err.message,
-        stack: err.stack,
-        canonicalRequest,
-        stringToSign,
-        hashedCanonicalRequest
-      }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" }
-      });
+      return new Response(
+        JSON.stringify({
+          error: err.message,
+          stack: err.stack,
+          canonicalRequest,
+          hashedCanonicalRequest,
+          stringToSign
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
     }
   }
 };
