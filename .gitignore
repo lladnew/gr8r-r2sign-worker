@@ -1,2 +1,5 @@
 .dev.vars
 test-fetch.js
+node_modules/
+.wrangler/
+dist/

@@ -1,7 +1,7 @@
 name = "gr8r-r2sign-worker"
 
 # ✅ Update to match your esbuild output:
-main = "index.mjs"
+main = "dist/index.mjs"
 
 compatibility_date = "2025-07-11"
 workers_dev = false
