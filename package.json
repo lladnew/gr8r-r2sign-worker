@@ -6,10 +6,11 @@
     "build": "node build.js"
   },
   "dependencies": {
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "@aws-sdk/client-s3": "^3.521.0",
+    "@aws-sdk/s3-request-presigner": "^3.521.0"
   },
   "devDependencies": {
     "esbuild": "^0.25.6"
   }
 }
-
