@@ -22,3 +22,9 @@ command = "npm install && npm run build"
 [build.upload]
 # ✅ Required to interpret the esbuild output as a module Worker
 format = "modules"
+[vars]
+# If you haven't defined other variables already, create this section
+
+[[services]]
+binding = "GRAFANA_WORKER"
+service = "gr8r-grafana-worker"
