@@ -1,8 +1,5 @@
 name = "gr8r-r2sign-worker"
-
-# ✅ Update to match your esbuild output:
 main = "dist/index.mjs"
-
 compatibility_date = "2025-07-11"
 workers_dev = false
 account_id = "6a22f9b8ad27ffcc9719dd53a78bcedf"
@@ -16,13 +13,12 @@ binding = "VIDEO_BUCKET"
 bucket_name = "videos-gr8r"
 
 [build]
-# ✅ This ensures esbuild runs on deploy
 command = "npm install && npm run build"
 
-[build.upload]
-# ✅ Required to interpret the esbuild output as a module Worker
-format = "modules"
+[vars]
+# other env vars if needed
 
 [[services]]
 binding = "GRAFANA_WORKER"
 service = "gr8r-grafana-worker"
+
