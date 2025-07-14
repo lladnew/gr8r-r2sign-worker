@@ -6,16 +6,16 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 export default {
   async fetch(request, env) {
     const log = (level, message, meta = {}) =>
-      fetch(env.GRAFANA_WORKER, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "gr8r-r2sign-worker",
-          level,
-          message,
-          meta,
-        }),
-      });
+  env.GRAFANA_WORKER.fetch("http://logger", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      source: "gr8r-r2sign-worker",
+      level,
+      message,
+      meta,
+    }),
+  });
 
     const client = new S3Client({
       region: "auto",
